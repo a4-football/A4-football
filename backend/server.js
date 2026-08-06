@@ -1,57 +1,63 @@
-
 // server.js
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+
+// تحميل متغيرات البيئة من Railway
 require('dotenv').config();
 
 const app = express();
 
 // ============ MIDDLEWARE ============
 
-// الأمان
 app.use(helmet());
 
-// CORS
 const corsOptions = {
-    origin: ['*'], // يمكن التطبيق من أي مكان
+    origin: ['*'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
 
-// حد الطلبات
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'عدد الطلبات كثير جداً، حاول لاحقاً'
+    max: 100
 });
 app.use('/api/', limiter);
 
-// تحليل JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// ============ FIREBASE CONNECTION ============
+
+let db;
+try {
+    db = require('./config/firebase');
+    console.log('✅ Firebase متصل بنجاح');
+} catch (error) {
+    console.error('❌ خطأ في الاتصال بـ Firebase:', error.message);
+    process.exit(1);
+}
+
 // ============ MODELS ============
+
 const LeagueModel = require('./models/LeagueModel');
 const MatchModel = require('./models/MatchModel');
 
 // ============ ROUTES ============
 
-// اختبار السيرفر
 app.get('/health', (req, res) => {
     res.json({
         success: true,
-        message: 'السيرفر يعمل بشكل صحيح',
-        timestamp: new Date()
+        message: 'السيرفر يعمل بشكل صحيح ✅',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
     });
 });
 
-// -------- LEAGUES --------
-
-// الحصول على جميع الدوريات
+// Leagues
 app.get('/api/leagues', async (req, res) => {
     try {
         const leagues = await LeagueModel.getAllLeagues();
@@ -69,7 +75,6 @@ app.get('/api/leagues', async (req, res) => {
     }
 });
 
-// إضافة دوري جديد
 app.post('/api/leagues', async (req, res) => {
     try {
         const league = await LeagueModel.createLeague(req.body);
@@ -87,9 +92,7 @@ app.post('/api/leagues', async (req, res) => {
     }
 });
 
-// -------- MATCHES --------
-
-// الحصول على مباريات يوم معين
+// Matches
 app.get('/api/matches/by-date/:date', async (req, res) => {
     try {
         const matches = await MatchModel.getMatchesByDate(req.params.date);
@@ -108,7 +111,6 @@ app.get('/api/matches/by-date/:date', async (req, res) => {
     }
 });
 
-// الحصول على المباريات الحية
 app.get('/api/matches/live', async (req, res) => {
     try {
         const matches = await MatchModel.getLiveMatches();
@@ -126,7 +128,6 @@ app.get('/api/matches/live', async (req, res) => {
     }
 });
 
-// البحث عن مباريات
 app.get('/api/matches/search/:teamName', async (req, res) => {
     try {
         const matches = await MatchModel.searchMatches(req.params.teamName);
@@ -144,7 +145,6 @@ app.get('/api/matches/search/:teamName', async (req, res) => {
     }
 });
 
-// الحصول على تفاصيل مباراة
 app.get('/api/matches/:id', async (req, res) => {
     try {
         const match = await MatchModel.getMatchDetails(req.params.id);
@@ -161,7 +161,6 @@ app.get('/api/matches/:id', async (req, res) => {
     }
 });
 
-// إضافة مباراة جديدة
 app.post('/api/matches', async (req, res) => {
     try {
         const match = await MatchModel.createMatch(req.body);
@@ -179,7 +178,6 @@ app.post('/api/matches', async (req, res) => {
     }
 });
 
-// تحديث حالة المباراة
 app.put('/api/matches/:id', async (req, res) => {
     try {
         const match = await MatchModel.updateMatchStatus(req.params.id, req.body);
