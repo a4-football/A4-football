@@ -2,12 +2,17 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
 
-RUN npm install
+# Install dependencies
+RUN npm install --production
 
+# Copy application code
 COPY . .
 
+# Expose port
 EXPOSE 8080
 
+# Start application
 CMD ["npm", "start"]
